@@ -1,0 +1,156 @@
+---
+# Playbook: VM 2 (Monitor/CI/CD Server) 구축
+- name: Configure Prometheus, Grafana, and Jenkins on VM 2
+  hosts: ci_monitor # Ansible Inventory에서 VM 2에 해당하는 그룹명
+  become: yes
+
+  vars:
+    jenkins_port: 8080
+    grafana_port: 3000
+    prometheus_port: 9090
+    
+    # 각 VM의 IP 주소 (Node Exporter 수집 대상)
+    # 실제 IP 주소에 맞게 수정하세요. (예시: 192.168.30.x 대역 사용)
+    target_ips:
+      - '172.16.6.92' # VM 2 (ci_monitor)
+      - '172.16.6.94' # VM 1 (ansible_controller)
+      - '192.168.30.100' # VM 3 (web_storage)
+      - '192.168.30.98' # VM 4 (db_backup)
+
+  tasks:
+    ## 1. Jenkins 설치 및 설정
+    - name: Import Jenkins GPG key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+    - name: Add Jenkins repository
+      ansible.builtin.copy:
+        content: |
+          [jenkins]
+          name=Jenkins-stable
+          baseurl=https://pkg.jenkins.io/redhat-stable
+          gpgcheck=1
+        dest: /etc/yum.repos.d/jenkins.repo
+
+    - name: Install Java (required for Jenkins) and Jenkins
+      ansible.builtin.dnf:
+        name: 
+          - java-17-openjdk-devel
+          - jenkins
+        state: latest
+
+    - name: Start Jenkins service
+      ansible.builtin.systemd:
+        name: jenkins
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    ## 2. Prometheus 설치 및 설정
+    - name: Create Prometheus user
+      ansible.builtin.user:
+        name: prometheus
+        shell: /bin/false
+        home: /
+
+    - name: Create Prometheus directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+      loop:
+        - /etc/prometheus
+        - /var/lib/prometheus
+
+    - name: Download and extract Prometheus binary
+      ansible.builtin.unarchive:
+        src: "https://github.com/prometheus/prometheus/releases/download/v2.46.0/prometheus-2.46.0.linux-amd64.tar.gz" # 최신 안정 버전 확인 필요
+        dest: /tmp
+        remote_src: yes
+
+    - name: Copy binaries to target location
+      ansible.builtin.copy:
+        src: "/tmp/prometheus-2.46.0.linux-amd64/{{ item }}"
+        dest: "/usr/local/bin/"
+        owner: prometheus
+        group: prometheus
+        mode: '0755'
+        remote_src: yes
+      loop:
+        - prometheus
+        - promtool
+
+    - name: Configure prometheus.yml to scrape all Node Exporters
+      ansible.builtin.template:
+        src: prometheus.yml.j2 # 아래에 별도 파일로 작성
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group: prometheus
+        mode: '0644'
+        force: yes
+      notify: Restart Prometheus Service
+
+    - name: Create Prometheus systemd service file
+      ansible.builtin.copy:
+        content: |
+          [Unit]
+          Description=Prometheus
+          Wants=network-online.target
+          After=network-online.target
+          
+          [Service]
+          User=prometheus
+          Group=prometheus
+          Type=simple
+          ExecStart=/usr/local/bin/prometheus \
+            --config.file /etc/prometheus/prometheus.yml \
+            --storage.tsdb.path /var/lib/prometheus/ \
+            --web.console.templates=/etc/prometheus/consoles \
+            --web.console.libraries=/etc/prometheus/console_libraries
+          
+          [Install]
+          WantedBy=multi-user.target
+        dest: /etc/systemd/system/prometheus.service
+
+    - name: Start Prometheus service
+      ansible.builtin.systemd:
+        name: prometheus
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    ## 3. Grafana 설치 및 설정
+    - name: Add Grafana repository
+      ansible.builtin.copy:
+        content: |
+          [grafana]
+          name=grafana
+          baseurl=https://rpm.grafana.com
+          repo_gpgcheck=1
+          enabled=1
+          gpgcheck=1
+          gpgkey=https://rpm.grafana.com/gpg.key
+          sslverify=1
+          sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+        dest: /etc/yum.repos.d/grafana.repo
+
+    - name: Install Grafana
+      ansible.builtin.dnf:
+        name: grafana
+        state: latest
+        
+    - name: Start Grafana service
+      ansible.builtin.systemd:
+        name: grafana-server
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: Restart Prometheus Service
+      ansible.builtin.systemd:
+        name: prometheus
+        state: restarted
+        daemon_reload: yes
