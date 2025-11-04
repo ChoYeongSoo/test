@@ -12,8 +12,8 @@
     # 각 VM의 IP 주소 (Node Exporter 수집 대상)
     # 실제 IP 주소에 맞게 수정하세요. (예시: 192.168.30.x 대역 사용)
     target_ips:
-      - '172.16.6.92' # VM 2 (ci_monitor)
-      - '172.16.6.94' # VM 1 (ansible_controller)
+      - '192.168.10.92' # VM 2 (ci_monitor)
+      - '192.168.10.94' # VM 1 (ansible_controller)
       - '192.168.30.100' # VM 3 (web_storage)
       - '192.168.30.98' # VM 4 (db_backup)
 
