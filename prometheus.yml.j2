@@ -1,0 +1,15 @@
+# /etc/ansible/prometheus.yml.j2
+global:
+  scrape_interval: 15s # 기본 수집 간격
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:{{ prometheus_port }}']
+
+  - job_name: 'node_exporters'
+    static_configs:
+      - targets:
+        {% for ip in target_ips %}
+        - '{{ ip }}:9100'
+        {% endfor %}

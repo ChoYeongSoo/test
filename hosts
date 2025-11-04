@@ -1,0 +1,19 @@
+# /etc/ansible/hosts 파일 내용
+[lb_server]
+vm1 ansible_host=192.168.10.94
+
+[jenkins_monitoring]
+vm2 ansible_host=192.168.10.92
+
+[web_storage]
+vm3 ansible_host=192.168.10.95
+
+[db_backup]
+vm4 ansible_host=192.168.10.98
+
+[all:vars]
+ansible_user=root
+
+[ci_monitor]
+# Jenkins에서 타겟으로 삼을 VM2의 주소 (Playbook의 hosts: ci_monitor)
+192.168.10.92
