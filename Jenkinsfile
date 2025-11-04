@@ -12,7 +12,7 @@ pipeline {
                 // Jenkins Credentials ID 'jenkins-ansible-key'를 사용하여 SSH 인증 수행
                 sshagent(credentials: ['jenkins-ansible-key']) {
                     // 키 인증에 성공한 후, ssh 명령을 실행하여 Ansible Playbook 실행
-                    sh "ssh -o StrictHostKeyChecking=no root@192.168.10.94 'ansible-playbook /etc/ansible/test/monitor_ci_setup.yml'"
+                    sh "ssh -o StrictHostKeyChecking=no root@192.168.10.94 'ansible-playbook -i /etc/ansible/test/hosts /etc/ansible/test/monitor_ci_setup.yml'"
                 }
             }
         }
