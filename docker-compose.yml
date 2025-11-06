@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./html:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php
+    restart: always
+
+  php:
+    # Dockerfile을 사용하도록 build 컨텍스트를 추가합니다.
+    build: .
+    volumes:
+      - ./html:/var/www/html
+    restart: always
