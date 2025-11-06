@@ -27,9 +27,7 @@ pipeline {
         // 2. Docker 이미지 빌드
         stage('2. Build Docker Image') {
             steps {
-                // Dockerfile을 사용하여 새 이미지를 로컬 Jenkins 서버(VM2)에 빌드합니다.
-                // 빌드 성공 후 이미지 태그는 'cho/web-app:build-N' 형태가 됩니다.
-                sh "docker build -t ${DOCKER_IMAGE}:${IMAGE_TAG} ."
+                sh "docker build --no-cache -t cho/web-app:build-${BUILD_NUMBER} ."
             }
         }
 
