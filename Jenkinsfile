@@ -20,9 +20,9 @@ pipeline {
 
         stage('2. Build Docker Image') {
             steps {
-                // --no-cache 옵션과 함께 --build-arg HTTP_PROXY, HTTPS_PROXY, NO_PROXY를 강제로 주입합니다.
-        	// 이것은 외부 접속 문제를 해결하는 가장 확실한 방법입니다.
-        	sh "docker build --no-cache --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY -t cho/web-app:build-${BUILD_NUMBER} ."
+        	// --add-host 옵션을 사용하여 Alpine CDN의 IP를 강제로 Docker 빌드 환경에 주입합니다.
+        	// VM2의 /etc/hosts에 넣었던 IP를 사용합니다.
+        	sh "docker build --no-cache --add-host dl-cdn.alpinelinux.org:35.190.170.155 -t cho/web-app:build-${BUILD_NUMBER} ."
             }
         }
 
