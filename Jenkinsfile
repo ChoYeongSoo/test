@@ -20,9 +20,9 @@ pipeline {
 
         stage('2. Build Docker Image') {
             steps {
-                // Docker 이미지 빌드 및 태그 지정
-                // --no-cache 옵션을 추가하여 mysqli 설치 실패 문제를 해결합니다. (강제 재빌드)
-                sh "docker build --no-cache -t cho/web-app:build-${BUILD_NUMBER} ."
+                // --no-cache 옵션과 함께 --build-arg HTTP_PROXY, HTTPS_PROXY, NO_PROXY를 강제로 주입합니다.
+        	// 이것은 외부 접속 문제를 해결하는 가장 확실한 방법입니다.
+        	sh "docker build --no-cache --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY -t cho/web-app:build-${BUILD_NUMBER} ."
             }
         }
 
