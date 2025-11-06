@@ -1,56 +1,58 @@
 pipeline {
-    // Jenkins 에이전트는 빌드 환경을 제공합니다. (VM2 Jenkins 서버 자체 사용)
     agent any
-
-    // 환경 변수 설정 (선택 사항: Docker 이미지 이름 등을 정의)
+    
+    // 환경 변수 설정 (Build Number는 Jenkins가 자동으로 제공)
     environment {
-        // GitHub 저장소 이름과 동일하게 설정 (cho/web-app)
-        DOCKER_IMAGE = 'cho/web-app'
-        // Docker Hub에 푸시할 경우 사용할 태그
-        IMAGE_TAG = "build-${BUILD_NUMBER}" 
-        // Ansible SSH 접속에 사용할 VM1의 root 계정
-        ANSIBLE_USER = 'root'
-        ANSIBLE_HOST = '192.168.10.94' // VM1 IP
+        // VM3 (App Server) 배포 경로 및 IP 설정 (Ansible 실행 위치: VM1)
         ANSIBLE_INVENTORY = '/etc/ansible/test/hosts'
-        ANSIBLE_PLAYBOOK = '/etc/ansible/test/app_deploy.yml' // VM3에 배포할 Playbook
+        ANSIBLE_PLAYBOOK_APP = '/etc/ansible/test/app_deploy.yml'
+        ANSIBLE_PLAYBOOK_MONITOR = '/etc/ansible/test/monitor_ci_setup.yml'
+        VM1_IP = '192.168.10.94' // VM1 IP 주소 (Ansible 제어 노드)
     }
 
     stages {
-        // 1. 소스 코드 체크아웃 (SCM: Source Code Management)
         stage('1. Checkout Code') {
             steps {
-                // GitHub에 푸시된 모든 파일(앱 코드, Dockerfile 등)을 가져옵니다.
+                // SCM에서 최신 코드 가져오기
                 checkout scm
             }
         }
 
-        // 2. Docker 이미지 빌드
         stage('2. Build Docker Image') {
             steps {
+                // Docker 이미지 빌드 및 태그 지정
+                // --no-cache 옵션을 추가하여 mysqli 설치 실패 문제를 해결합니다. (강제 재빌드)
                 sh "docker build --no-cache -t cho/web-app:build-${BUILD_NUMBER} ."
             }
         }
 
-        // 3. VM1을 경유하여 VM3에 배포
-        stage('3. Deploy via Ansible') {
+        stage('3. Deploy App via Ansible') {
             steps {
-                // Jenkins Credential ID 'jenkins-ansible-key'를 사용하여 VM1에 SSH 접속합니다.
+                // Jenkins Credentials ID 'jenkins-ansible-key'를 사용하여 SSH 인증 수행
                 sshagent(credentials: ['jenkins-ansible-key']) {
-                    // VM1에서 Ansible을 실행하여 VM3에 Docker Compose 배포 Playbook을 실행합니다.
-                    // 이 Playbook이 VM3에서 Docker Compose를 최신 이미지로 재실행합니다.
-                    sh "ssh -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_HOST} 'ansible-playbook -i ${ANSIBLE_INVENTORY} ${ANSIBLE_PLAYBOOK}'"
+                    // VM1에서 app_deploy.yml Playbook 실행
+                    sh "ssh -o StrictHostKeyChecking=no root@${VM1_IP} 'ansible-playbook -i ${ANSIBLE_INVENTORY} ${ANSIBLE_PLAYBOOK_APP}'"
+                }
+            }
+        }
+        
+        // **[NEW]** 모니터링 시스템 배포 스테이지 추가
+        stage('4. Deploy Monitoring') {
+            steps {
+                // 모니터링 시스템 (Prometheus/Grafana/Node Exporter) 배포 Playbook 실행
+                sshagent(credentials: ['jenkins-ansible-key']) {
+                    sh "ssh -o StrictHostKeyChecking=no root@${VM1_IP} 'ansible-playbook -i ${ANSIBLE_INVENTORY} ${ANSIBLE_PLAYBOOK_MONITOR}'"
                 }
             }
         }
     }
 
-    // 빌드 후 처리 (성공/실패 알림 등)
     post {
         success {
-            echo "CI/CD 파이프라인 성공! 새로운 버전이 VM3에 배포되었습니다."
+            echo "✅ CI/CD 파이프라인 성공! 새로운 버전이 VM3에 배포되었고 모니터링 시스템이 설정되었습니다."
         }
         failure {
-            echo "CI/CD 파이프라인 실패! 로그를 확인해 주세요."
+            echo "❌ CI/CD 파이프라인 실패. 로그를 확인하세요."
         }
     }
 }
