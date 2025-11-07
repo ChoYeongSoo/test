@@ -1,14 +1,17 @@
-FROM php:8.1-fpm-alpine
+# /tmp/ci_files/Dockerfile 내용 수정
 
-# 아래 RUN 명령어를 첫 번째 레이어로 추가합니다.
-# /etc/apk/repositories 파일을 캐나다 미러 서버(예시)로 강제 지정하여 네트워크 불안정 회피
-RUN echo "https://mirror.layerjet.com/alpine/v3.21/main" > /etc/apk/repositories && \
-    echo "https://mirror.layerjet.com/alpine/v3.21/community" >> /etc/apk/repositories && \
+FROM docker.io/library/php:8.1-fpm-alpine
+
+# 1. 미러 서버 목록을 기본값으로 강제 초기화하고,
+# 2. 패키지 업데이트 및 mariadb 클라이언트 설치 시 http 접속을 허용합니다.
+# **주의:** 이전에 추가했던 미러 서버 강제 지정 라인은 이 코드로 대체합니다.
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.21/main" > /etc/apk/repositories && \
+    echo "https://dl-cdn.alpinelinux.org/alpine/v3.21/community" >> /etc/apk/repositories && \
     apk update && \
-    apk add --no-cache mariadb-client-dev build-base
-
-# 2. mysqli 확장 설치 및 정리
-RUN docker-php-ext-install mysqli && \
+    apk add --no-cache mariadb-client-dev build-base && \
+    docker-php-ext-install mysqli && \
     docker-php-ext-enable mysqli && \
-    # 빌드에 사용한 불필요한 패키지 제거
     apk del build-base mariadb-client-dev
+
+# 나머지 파일 내용은 동일하게 유지합니다.
+COPY ./html /var/www/html
