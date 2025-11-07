@@ -1,7 +1,9 @@
 version: '3.8'
+
 services:
-  nginx:
+  web:
     image: nginx:stable-alpine
+    container_name: web_app-nginx-1
     ports:
       - "80:80"
     volumes:
@@ -12,8 +14,9 @@ services:
     restart: always
 
   php:
-    # Dockerfile을 사용하도록 build 컨텍스트를 추가합니다.
-    build: .
+    # Jenkins가 빌드할 때 사용할 'latest' 태그를 명시적으로 지정합니다.
+    image: cho/web-app:latest
+    container_name: web_app-php-1
     volumes:
       - ./html:/var/www/html
     restart: always
