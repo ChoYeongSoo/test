@@ -23,6 +23,8 @@ pipeline {
         	// --add-host 옵션을 사용하여 Alpine CDN의 IP를 강제로 Docker 빌드 환경에 주입합니다.
         	// VM2의 /etc/hosts에 넣었던 IP를 사용합니다.
         	sh "docker build --no-cache --add-host dl-cdn.alpinelinux.org:35.190.170.155 -t cho/web-app:latest ."
+		// 🚨 새로 추가: 빌드된 이미지를 Docker Hub에 푸시
+       		sh "docker push cho/web-app:latest"
             }
         }
 
